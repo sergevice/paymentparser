@@ -21,44 +21,35 @@ def get_google_credentials():
         st.error("Помилка при завантаженні Google Credentials. Перевірте секрети Streamlit.")
         return None
 
-import stanza
-
-# Load Ukrainian NLP pipeline
-stanza.download('uk')  # Only needed once
-nlp = stanza.Pipeline('uk', processors='tokenize,ner', use_gpu=False)
-
 def extract_fields(text):
     logging.info("Розпочато обробку тексту")
-    
-    # IBAN: 29 chars starting with UA
+    # Регулярний вираз для IBAN (29 символів, починається з UA, далі цифри)
     iban_pattern = re.compile(r'UA\d{27}|\bUA\d{2}(?:\s?\d{4}){6}\s?\d{1}\b')
     
-    # IPN: 10 digits
+    # Регулярний вираз для ІПН (10 цифр)
     ipn_pattern = re.compile(r'\b\d{10}\b')
     
-    # Payment purpose
+    # Регулярний вираз для Отримувача (три слова з буквами, апострофом, дефісом)
+    receiver_pattern = re.compile(r'(?<=Отримувач\s)\b([А-ЯҐЄІЇа-яґєії\'’-]+\s+[А-ЯҐЄІЇа-яґєії\'’-]+\s+[А-ЯҐЄІЇа-яґєії\'’-]+)\b', re.IGNORECASE)
+    
+    # Регулярний вираз для Призначення платежу (останній блок тексту після "Призначення платежу")
     payment_purpose_pattern = re.compile(r'Призначення платежу\s*(.*)', re.DOTALL)
-
-    # Run NER
-    doc = nlp(text)
-    person_entities = [ent.text.strip() for sent in doc.sentences for ent in sent.ents if ent.type == 'PERSON']
-    receiver_name = person_entities[0] if person_entities else None
     
     iban = iban_pattern.search(text)
     ipn = ipn_pattern.search(text)
+    receiver = receiver_pattern.search(text)
     payment_purpose = payment_purpose_pattern.search(text)
-
+    
     parsed_data = {
         "IBAN": iban.group(0) if iban else "Не знайдено",
         "ІПН": ipn.group(0) if ipn else "Не знайдено",
-        "Отримувач": receiver_name if receiver_name else "Не знайдено",
+        "Отримувач": receiver.group(0) if receiver else "Не знайдено",
         "Призначення платежу": payment_purpose.group(1).strip() if payment_purpose else "Не знайдено"
     }
-
+    
     validity = "Вірно" if all(value != "Не знайдено" for value in parsed_data.values()) else "Невірно"
     logging.info(f"Розібрані дані: {parsed_data}, Оцінка: {validity}")
     return parsed_data, validity
-
 
 
 def send_to_google_sheets(text, parsed_data, validity):
