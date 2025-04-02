@@ -24,7 +24,7 @@ def get_google_credentials():
 def extract_fields(text):
     logging.info("Розпочато обробку тексту")
     # Регулярний вираз для IBAN (29 символів, починається з UA, далі цифри)
-    iban_pattern = re.compile(r'UA\d{2}(?:\s?\d{4}){5,6}')
+    iban_pattern = re.compile(r'UA\d{27}|\bUA\d{2}(?:\s?\d{4}){6}\s?\d{1}\b')
     
     # Регулярний вираз для ІПН (10 цифр)
     ipn_pattern = re.compile(r'\b\d{10}\b')
